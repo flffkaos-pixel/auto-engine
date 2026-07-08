@@ -1,0 +1,36 @@
+name: Carousel Engine
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # KST 09:00
+    - cron: '0 9 * * *'  # KST 18:00
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install
+        run: |
+          pip install google-genai scrapling playwright requests
+          python -m playwright install chromium
+
+      - name: Set config
+        run: |
+          mkdir -p ${{ runner.temp }}/.carousel
+          echo '${{ secrets.CAROUSEL_CONFIG }}' > ${{ runner.temp }}/.carousel/config.json 2>/dev/null || echo '{}' > ${{ runner.temp }}/.carousel/config.json
+
+      - name: Run carousel
+        env:
+          CAROUSEL_DIR: ${{ runner.temp }}/.carousel
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          UPLOADPOST_USER: ${{ secrets.UPLOADPOST_USER }}
+          UPLOADPOST_TOKEN: ${{ secrets.UPLOADPOST_TOKEN }}
+        run: python carousel_engine.py --run
