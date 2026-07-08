@@ -1,0 +1,58 @@
+name: Auto Engine
+
+on:
+  schedule:
+    # KST 09:00 = UTC 00:00 (daily AM run)
+    - cron: '0 0 * * *'
+    # KST 18:00 = UTC 09:00 (daily PM run)
+    - cron: '0 9 * * *'
+  workflow_dispatch:  # manual trigger
+
+env:
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install google-genai scrapling playwright requests
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
+
+      - name: Set up configs
+        run: |
+          mkdir -p ${{ runner.temp }}/.carousel ${{ runner.temp }}/.content_pipeline
+          echo '${{ secrets.CAROUSEL_CONFIG }}' > ${{ runner.temp }}/.carousel/config.json 2>/dev/null || echo '{"url":"https://example.com","niche":"auto"}' > ${{ runner.temp }}/.carousel/config.json
+          echo '${{ secrets.CONTENT_CONFIG }}' > ${{ runner.temp }}/.content_pipeline/config.json 2>/dev/null || echo '{"topics":["trending"]}' > ${{ runner.temp }}/.content_pipeline/config.json
+
+      - name: Run morning (Carousel + Content)
+        if: github.event.schedule == '0 0 * * *' || github.event_name == 'workflow_dispatch'
+        env:
+          CAROUSEL_DIR: ${{ runner.temp }}/.carousel
+          PIPELINE_DIR: ${{ runner.temp }}/.content_pipeline
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          UPLOADPOST_USER: ${{ secrets.UPLOADPOST_USER }}
+          UPLOADPOST_TOKEN: ${{ secrets.UPLOADPOST_TOKEN }}
+          GHOST_URL: ${{ secrets.GHOST_URL }}
+          GHOST_ADMIN_API_KEY: ${{ secrets.GHOST_ADMIN_API_KEY }}
+          PLAUSIBLE_API_KEY: ${{ secrets.PLAUSIBLE_API_KEY }}
+        run: python auto_engine.py --all
+
+      - name: Run evening (Carousel only)
+        if: github.event.schedule == '0 9 * * *'
+        env:
+          CAROUSEL_DIR: ${{ runner.temp }}/.carousel
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          UPLOADPOST_USER: ${{ secrets.UPLOADPOST_USER }}
+          UPLOADPOST_TOKEN: ${{ secrets.UPLOADPOST_TOKEN }}
+        run: python auto_engine.py --carousel
