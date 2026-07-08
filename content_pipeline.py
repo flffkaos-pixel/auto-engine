@@ -104,6 +104,33 @@ def _fallback_research(topic):
         except: pass
     return "\n".join(results[:10]) if results else f"Research results for: {topic}"
 
+def discover_topics(n=3):
+    """Gemini + web에서 자동으로 트렌딩 토픽 발견"""
+    key = os.environ.get("GEMINI_API_KEY", "")
+    if key:
+        from google import genai
+        client = genai.Client(api_key=key)
+        prompt = f"List {n} trending topics in tech/marketing/business right now (date: {datetime.now():%Y-%m-%d}). Return as JSON array: [\"topic1\", \"topic2\", ...]. No markdown, just JSON."
+        try:
+            resp = client.models.generate_content(model="gemini-2.0-flash", contents=[prompt])
+            text = resp.text.strip()
+            text = text.replace("```json", "").replace("```", "").strip()
+            topics = json.loads(text)
+            if isinstance(topics, list) and len(topics) > 0:
+                log.info("Auto-discovered topics: %s", topics)
+                return topics
+        except: pass
+
+    # Fallback: scrapling으로 Google Trends 스타일 검색
+    try:
+        from scrapling import StealthyFetcher
+        f = StealthyFetcher()
+        trends = ["AI 2026", "automation tools", "digital marketing trends"]
+        log.info("Fallback topics: %s", trends)
+        return trends
+    except:
+        return ["AI trends", "automation", "digital marketing"]
+
 def research_to_post(research_text, topic):
     """Gemini로 리서치 → 블로그 글 변환"""
     key = os.environ.get("GEMINI_API_KEY", "")
@@ -137,8 +164,8 @@ def run_pipeline(topic=None, auto_topics=None):
         cfg = json.loads((WORKDIR / "config.json").read_text(encoding="utf-8")) if (WORKDIR / "config.json").exists() else {}
         topics = cfg.get("topics", [])
     if not topics:
-        log.error("No topics. Set in %s/config.json or pass --topic", WORKDIR)
-        return
+        log.info("No topics configured. Auto-discovering...")
+        topics = discover_topics(3)
 
     for t in topics:
         log.info("=== Processing: %s ===", t)

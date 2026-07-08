@@ -59,7 +59,7 @@ def setup_wizard():
 
     print()
     # Content pipeline config
-    topics = input("Content — Research topics (comma-separated): ").strip()
+    topics = input("Content — Research topics (comma-separated, blank=auto-discover): ").strip()
     ghost_url = input("Content — Ghost URL: ").strip()
     ghost_key = input("Content — Ghost Admin API key: ").strip()
     plausible_key = input("Content — Plausible API key (optional): ").strip()

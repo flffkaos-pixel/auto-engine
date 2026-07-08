@@ -29,11 +29,10 @@ jobs:
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
-      - name: Set up configs
+      - name: Set up carousel config
         run: |
-          mkdir -p ${{ runner.temp }}/.carousel ${{ runner.temp }}/.content_pipeline
-          echo '${{ secrets.CAROUSEL_CONFIG }}' > ${{ runner.temp }}/.carousel/config.json 2>/dev/null || echo '{"url":"https://example.com","niche":"auto"}' > ${{ runner.temp }}/.carousel/config.json
-          echo '${{ secrets.CONTENT_CONFIG }}' > ${{ runner.temp }}/.content_pipeline/config.json 2>/dev/null || echo '{"topics":["trending"]}' > ${{ runner.temp }}/.content_pipeline/config.json
+          mkdir -p ${{ runner.temp }}/.carousel
+          echo '${{ secrets.CAROUSEL_CONFIG }}' > ${{ runner.temp }}/.carousel/config.json 2>/dev/null || echo '{}' > ${{ runner.temp }}/.carousel/config.json
 
       - name: Run morning (Carousel + Content)
         if: github.event.schedule == '0 0 * * *' || github.event_name == 'workflow_dispatch'
